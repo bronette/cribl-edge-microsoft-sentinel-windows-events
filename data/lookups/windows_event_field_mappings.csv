@@ -1,0 +1,15 @@
+original_win_event_name,sentinel_field_name
+host,Computer
+ProviderName,Provider
+ContainerLog,Channel
+Id,EventID
+TaskDisplayName,DisplayName
+ProcessId,SystemProcessId
+ThreadId,SystemThreadId
+SubjectUserSid,SystemUserId
+Level,EventLevel
+LevelDisplayName,EventLevelName
+RecordId,EventRecordId
+GroupName,ManagementGroupName
+ProcessID,SystemProcessId
+ThreadID,SystemThreadId

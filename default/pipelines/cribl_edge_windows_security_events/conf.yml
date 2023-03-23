@@ -1,0 +1,196 @@
+output: default
+streamtags: []
+groups: {}
+asyncFuncTimeout: 1000
+functions:
+  - id: serde
+    filter: "true"
+    disabled: false
+    conf:
+      mode: extract
+      type: json
+      srcField: _raw
+  - id: mask
+    filter: "true"
+    disabled: null
+    conf:
+      rules:
+        - matchRegex: /\/Date\((\d+)\)\//
+          replaceExpr: g1
+      fields:
+        - TimeCreated
+      depth: 5
+  - id: eval
+    filter: "true"
+    disabled: null
+    conf:
+      add:
+        - name: TimeGenerated
+          value: C.Time.strftime(TimeCreated / 1000, "%Y-%m-%dT%H:%M:%S.%f000Z")
+    description: Format the TimeGenerated field based on the TimeCreated field.
+  - id: eval
+    filter: "true"
+    disabled: false
+    conf:
+      add:
+        - name: __event_code
+          value: String(Id)
+        - name: __version
+          value: String(Version)
+    description: Fields must be String type for multi-key lookup to work correctly
+  - id: lookup
+    filter: "true"
+    disabled: false
+    conf:
+      matchMode: exact
+      reloadPeriodSec: -1
+      addToEvent: false
+      inFields:
+        - eventField: __event_code
+          lookupField: event_code
+        - eventField: __version
+          lookupField: version
+      ignoreCase: false
+      file: win_template.csv
+      outFields:
+        - lookupField: fields
+          eventField: __fields
+    description: Obtain fields from the Windows Logging Template file
+  - id: code
+    filter: "true"
+    disabled: false
+    conf:
+      maxNumOfIterations: 5000
+      code: >-
+        // Convert signed decimal to hex number
+
+        const decimalToHexString = (number) => {
+            number = number < 0 ? 0xFFFFFFFFFFFFFFFF + number + 1 : number;
+            return number.toString(16).toUpperCase();
+        }
+
+
+        // Converts two arrays into 
+
+        const kv_pairs = (keys, values) => {
+            const k = keys.split(',');
+            const v = values.map(entry => entry.Value);
+            return C.Misc.zip(k, v);
+        }
+
+
+        // Builds "XML" string from KV pairs
+
+        const xml_string = (kvs) => Object.entries(kvs).reduce((acc, curr) => `${acc}<Data Name='${curr[0]}'>${curr[1]}</Data>`, '');
+
+        //const obj = Object.entries(kvs).toString();
+
+        // Make the XML event
+
+        __e['RawEventData'] = kv_pairs(__e['__fields'], __e['Properties']);
+
+        __e['ProviderName'] = __e['ProviderName'];
+
+        __e['ProviderId'] = __e['ProviderId'];
+
+        __e['Id'] = __e['Id'];
+
+        __e['Version'] = __e['Version'];
+
+        __e['EventData'] = `<Event xmlns='http://schemas.microsoft.com/win/2004/08/events/event'><System><Provider Name='${__e['ProviderName']}' Guid='{${__e['ProviderId']}}'/><EventID>${__e['Id']}</EventID><Version>${__e['Version']}</Version><Level>${__e['Level']}</Level><Task>${__e['Task']}</Task><Opcode>${__e['Opcode']}</Opcode><Keywords>0x${decimalToHexString(__e['Keywords'])}</Keywords><TimeCreated SystemTime='${__e['TimeCreated']}'/><EventRecordID>${__e['RecordId']}</EventRecordID><Correlation/><Execution ProcessID='${__e['ProcessId']}' ThreadID='${__e['ThreadId']}'/><Channel>${__e['LogName']}</Channel><Computer>${__e['MachineName']}</Computer><Security/></System><EventData>${xml_string(kv_pairs(__e['__fields'], __e['Properties']))}</EventData></Event>`
+    description: "Build the XML event and pull out the fields from the windows template "
+  - id: mask
+    filter: "true"
+    disabled: null
+    conf:
+      rules:
+        - matchRegex: /\t/g
+          replaceExpr: '"\\t"'
+        - matchRegex: /\r/g
+          replaceExpr: '"\\r"'
+        - matchRegex: /\n/g
+          replaceExpr: '"\\n"'
+      fields:
+        - EventData
+      depth: 5
+  - id: regex_extract
+    filter: "true"
+    disabled: null
+    conf:
+      source: Message
+      iterations: 100
+      overwrite: false
+      regex: /(?<ShortSummaryMessage>.*)/
+    description: Pull out the short message so we can append it to the activity field.
+  - id: serde
+    filter: "true"
+    disabled: null
+    conf:
+      mode: extract
+      type: json
+      srcField: RawEventData
+      cleanFields: false
+      allowedKeyChars: []
+      allowedValueChars: []
+      keep: []
+      fields: []
+      remove: []
+    description: "Move RawEventMesssage fields to the top level. "
+  - id: rename
+    filter: "true"
+    disabled: null
+    conf:
+      wildcardDepth: 5
+      renameExpr: "C.Lookup('microsoft-sentinel-security-event-field-mapping.csv','ol\
+        dFieldName').match(name) ?
+        C.Lookup('microsoft-sentinel-security-event-field-mapping.csv','oldFiel\
+        dName').match(name,'newFieldName') : name"
+      rename: []
+    description: "This is where we reference the CSV file
+      azure-sentinel-security-event-field-mapping.csv to rename any fields that
+      do not conform to Microsoft's Pascal casing. "
+  - id: eval
+    filter: "true"
+    disabled: false
+    conf:
+      add:
+        - name: PrivilegeList
+          value: PrivilegeList.replaceAll("\r\n\t\t\t"," ")
+        - name: SourceSystem
+          value: "'Cribl Edge Windows Event Forwarder'"
+        - name: Activity
+          value: "`${EventID} - ${ShortSummaryMessage}`"
+        - name: SubjectAccount
+          value: '(SubjectDomainName == undefined || SubjectUserName == undefined) ||
+            SubjectUserName == "-" ? undefined : SubjectDomainName + "\\" +
+            SubjectUserName'
+        - value: 'TargetDomainName == undefined || TargetUserName == undefined ? undefined
+            : TargetDomainName + "\\" + TargetUserName'
+          name: TargetAccount
+        - name: Type
+          value: "'SecurityEvent'"
+        - name: Process
+          value: "ProcessName != undefined ?
+            ProcessName.substring(ProcessName.lastIndexOf('\\\\') + 1,
+            ProcessName.length) : undefined"
+      remove:
+        - Properties
+        - RawEventData
+        - KeywordsDisplayNames
+        - source
+        - keywords
+        - _time
+        - cribl_breaker
+        - cribl_*
+        - Keywords
+        - Message
+        - ShortSummaryMessage
+        - Qualifiers
+        - _raw
+        - TimeCreated
+        - LogName
+        - UserId
+        - Version
+        - ThreadId
+        - ActivityId
+        - ProviderId

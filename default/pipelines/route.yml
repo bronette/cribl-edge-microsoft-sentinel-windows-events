@@ -1,0 +1,40 @@
+id: default
+groups: {}
+comments: []
+routes:
+  - id: default
+    name: cribl-edge-windows-security-event
+    final: true
+    disabled: false
+    pipeline: cribl_edge_windows_security_events
+    description: "Check that the _raw payload from the Cribl edge forwarder to
+      confirm it is indeed a security based event. "
+    clones: []
+    enableOutputExpression: false
+    outputExpression: null
+    filter: _raw.indexOf("\"ContainerLog\":\"security\"") > -1 ||
+      _raw.indexOf("\"ProviderName\":\"Microsoft-Windows-Security-Auditing\"")
+    output: default
+  - id: IIbteZ
+    name: cribl-edge-windows-event
+    final: true
+    disabled: false
+    pipeline: cribl_edge_windows_events
+    description: "Handles any windows based events that aren't security. "
+    clones: []
+    enableOutputExpression: false
+    outputExpression: null
+    filter: '_raw.indexOf("\"ContainerLog\":\"Application\"") > -1 ||
+      _raw.indexOf("\"ContainerLog\":\"System\"") > -1 '
+    output: default
+  - id: vhGyf6
+    name: "Black hole..can't identify this type of event :( "
+    final: true
+    disabled: false
+    pipeline: main
+    description: ""
+    clones: []
+    enableOutputExpression: false
+    outputExpression: null
+    filter: "true"
+    output: default

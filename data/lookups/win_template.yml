@@ -1,0 +1,4 @@
+description: Contains the field mappings for parsing Windows Security Event messages
+tags: Windows,Security,Events,Sentinel,Microsoft
+rows: 52422
+size: 6997426

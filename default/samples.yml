@@ -1,0 +1,21 @@
+jlecbc:
+  sampleName: windows_2016_security_events.log
+  created: 1679330380412
+  size: 91193
+  numEvents: 10
+  modified: 1679335413552.999
+C1DdtK:
+  sampleName: system_based_windows_event.log.json
+  created: 1679497843695
+  size: 9693
+  numEvents: 5
+MceadE:
+  sampleName: windows_system_event.log
+  created: 1679501362845
+  size: 1048
+  numEvents: 1
+XiR0ru:
+  sampleName: window_event_application.log
+  created: 1679501402694
+  size: 1184
+  numEvents: 1

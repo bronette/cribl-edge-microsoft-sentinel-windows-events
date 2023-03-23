@@ -1,0 +1,4 @@
+size: 369
+description: Converts Cribl Edge based windows events to the correct name in the
+  Microsoft Sentinel WindowsEvent native table schema.a
+rows: 14

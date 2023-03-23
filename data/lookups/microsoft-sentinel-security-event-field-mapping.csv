@@ -1,0 +1,6 @@
+oldFieldName,newFieldName
+host,Computer
+ProviderName,EventSourceName
+ContainerLog,Channel
+Id,EventID
+TaskDisplayName,DisplayName

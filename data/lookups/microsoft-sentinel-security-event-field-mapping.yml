@@ -1,0 +1,5 @@
+description: "This maps fields parsed from the Cribl Edge forwarder and converts
+  them to the SecuityEvent pascal casing Microsoft expects. "
+tags: Sentinel,Microsoft,Security,Event
+rows: 5
+size: 128
